@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Custom Music Ball Simulator & Video Exporter</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0d0e15;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* Bảng điều khiển bên trái */
+    #sidebar {
+      width: 340px;
+      background: #161822;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      overflow-y: auto;
+      border-right: 1px solid #2a2d3d;
+    }
+
+    h2 { margin: 0 0 10px 0; font-size: 18px; color: #00f0ff; text-transform: uppercase; }
+    
+    .section {
+      background: #1f2230;
+      padding: 12px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label { font-size: 12px; color: #aaa; }
+    
+    input[type="file"], select, input[type="color"] {
+      width: 100%;
+      padding: 8px;
+      background: #12131c;
+      border: 1px solid #33374a;
+      color: #fff;
+      border-radius: 4px;
+      outline: none;
+    }
+
+    .color-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* Vùng hiển thị Canvas */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    canvas {
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+      background: #000;
+    }
+
+    /* Các nút hành động */
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    #startBtn { background: #00f0ff; color: #000; }
+    #startBtn:hover { background: #70f8ff; }
+    
+    #recordBtn { background: #ff0055; color: #fff; }
+    #recordBtn:hover { background: #ff4081; }
+    
+    #stopBtn { background: #444; color: #aaa; }
+    #stopBtn:enabled { background: #e6a100; color: #000; }
+
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR TÙY CHỈNH -->
+  <div id="sidebar">
+    <h2>Tùy Chỉnh Studio</h2>
+
+    <div class="section">
+      <label>1. Tệp Âm Nhạc</label>
+      <input type="file" id="audioInput" accept="audio/*">
+    </div>
+
+    <div class="section">
+      <label>2. Tùy Chỉnh Quả Bóng</label>
+      <label>Hình dạng:</label>
+      <select id="ballShape">
+        <option value="circle">Hình Tròn (Bóng)</option>
+        <option value="star">Ngôi Sao</option>
+        <option value="diamond">Kim Cương</option>
+        <option value="square">Hình Vuông</option>
+      </select>
+
+      <div class="color-group">
+        <div>
+          <label>Màu sắc:</label>
+          <input type="color" id="ballColor" value="#ff007f">
+        </div>
+        <div>
+          <label>Màu phát sáng:</label>
+          <input type="color" id="ballGlow" value="#ff77bc">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <label>3. Tùy Chỉnh Các Thanh</label>
+      <label>Kiểu dáng thanh:</label>
+      <select id="platformStyle">
+        <option value="neon">Thanh Neon Phát Sáng</option>
+        <option value="rounded">Thanh Bo Góc Soft</option>
+        <option value="pill">Thanh Bán Nguyệt (Viên thuốc)</option>
+      </select>
+
+      <div class="color-group">
+        <div>
+          <label>Màu thanh:</label>
+          <input type="color" id="platformColor" value="#00f0ff">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <label>4. Phông Nền & Hiệu Ứng Rơi</label>
+      <label>Kiểu Phông Nền:</label>
+      <select id="bgStyle">
+        <option value="dark">Tối Đơn Sắc (Space Black)</option>
+        <option value="grid">Lưới Cyberpunk (Cyber Grid)</option>
+        <option value="gradient">Chuyển Màu Radial (Deep Glow)</option>
+      </select>
+
+      <label>Vệt Đuôi / Hiệu Ứng Rơi:</label>
+      <select id="trailStyle">
+        <option value="particles">Hạt Bụi Phát Sáng (Sparkles)</option>
+        <option value="fade">Vệt Đuôi Mờ (Motion Blur)</option>
+        <option value="none">Không Hiệu Ứng</option>
+      </select>
+    </div>
+
+    <div class="btn-group">
+      <button id="startBtn">Chạy Demo</button>
+    </div>
+    <div class="btn-group">
+      <button id="recordBtn">Bắt Đầu Quay</button>
+      <button id="stopBtn" disabled>Dừng & Tải Video</button>
+    </div>
+  </div>
+
+  <!-- VÙNG HIỂN THỊ CANVAS -->
+  <div id="main">
+    <canvas id="simCanvas" width="450" height="750"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Lấy Element Tùy Chỉnh
+    const audioInput = document.getElementById('audioInput');
+    const ballShape = document.getElementById('ballShape');
+    const ballColor = document.getElementById('ballColor');
+    const ballGlow = document.getElementById('ballGlow');
+    const platformStyle = document.getElementById('platformStyle');
+    const platformColor = document.getElementById('platformColor');
+    const bgStyle = document.getElementById('bgStyle');
+    const trailStyle = document.getElementById('trailStyle');
+
+    const startBtn = document.getElementById('startBtn');
+    const recordBtn = document.getElementById('recordBtn');
+    const stopBtn = document.getElementById('stopBtn');
+
+    let audioCtx, audioBuffer, audioSource;
+    let mediaRecorder, recordedChunks = [];
+    let isPlaying = false;
+    let particles = [];
+
+    // Vật lý quả bóng
+    const ball = { x: 225, y: 50, vx: 3, vy: 0, radius: 14, gravity: 0.28 };
+    
+    // Danh sách các thanh nhạc
+    const platforms = [
+      { x: 140, y: 180, w: 130, h: 14, angle: 0.12 },
+      { x: 310, y: 310, w: 130, h: 14, angle: -0.15 },
+      { x: 150, y: 440, w: 130, h: 14, angle: 0.1 },
+      { x: 290, y: 570, w: 130, h: 14, angle: -0.12 }
+    ];
+
+    // Âm thanh
+    audioInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const arrayBuffer = await file.arrayBuffer();
+      audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    });
+
+    function playAudio() {
+      if (!audioBuffer) return null;
+      if (audioSource) audioSource.stop();
+      audioSource = audioCtx.createBufferSource();
+      audioSource.buffer = audioBuffer;
+      const dest = audioCtx.createMediaStreamDestination();
+      audioSource.connect(audioCtx.destination);
+      audioSource.connect(dest);
+      audioSource.start();
+      return dest.stream;
+    }
+
+    // Cập nhật vị trí & hạt bụi
+    function updatePhysics() {
+      ball.vy += ball.gravity;
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      // Tạo hạt hiệu ứng vệt đuôi khi rơi
+      if (trailStyle.value === 'particles') {
+        particles.push({
+          x: ball.x,
+          y: ball.y,
+          size: Math.random() * 5 + 2,
+          alpha: 1,
+          color: ballGlow.value
+        });
+      }
+
+      // Xử lý nảy tường
+      if (ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
+        ball.vx *= -1;
+      }
+      if (ball.y + ball.radius > canvas.height) {
+        ball.y = 40;
+        ball.vy = 0;
+      }
+
+      // Va chạm với các thanh
+      platforms.forEach(p => {
+        if (ball.x > p.x - p.w/2 && ball.x < p.x + p.w/2 &&
+            Math.abs(ball.y - p.y) < ball.radius + p.h/2) {
+          ball.vy = -7.5;
+        }
+      });
+
+      // Cập nhật hạt bụi
+      particles.forEach((p, index) => {
+        p.alpha -= 0.03;
+        if (p.alpha <= 0) particles.splice(index, 1);
+      });
+    }
+
+    // --- VẼ HÌNH DẠNG BÓNG ---
+    function drawBall() {
+      ctx.save();
+      ctx.translate(ball.x, ball.y);
+      ctx.fillStyle = ballColor.value;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = ballGlow.value;
+
+      const shape = ballShape.value;
+      const r = ball.radius;
+
+      if (shape === 'circle') {
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (shape === 'square') {
+        ctx.fillRect(-r, -r, r * 2, r * 2);
+      } else if (shape === 'diamond') {
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 1.3);
+        ctx.lineTo(r * 1.3, 0);
+        ctx.lineTo(0, r * 1.3);
+        ctx.lineTo(-r * 1.3, 0);
+        ctx.closePath();
+        ctx.fill();
+      } else if (shape === 'star') {
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * r * 1.2,
+                     -Math.sin((18 + i * 72) * Math.PI / 180) * r * 1.2);
+          ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * (r / 2),
+                     -Math.sin((54 + i * 72) * Math.PI / 180) * (r / 2));
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // --- VẼ THANH ---
+    function drawPlatforms() {
+      platforms.forEach(p => {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = platformColor.value;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = platformColor.value;
+
+        const style = platformStyle.value;
+        if (style === 'neon') {
+          ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        } else if (style === 'rounded' || style === 'pill') {
+          const radius = style === 'pill' ? p.h / 2 : 4;
+          ctx.beginPath();
+          ctx.roundRect(-p.w/2, -p.h/2, p.w, p.h, radius);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+    }
+
+    // --- VẼ PHÔNG NỀN ---
+    function drawBackground() {
+      const bg = bgStyle.value;
+      if (bg === 'dark') {
+        ctx.fillStyle = '#0a0b10';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else if (bg === 'gradient') {
+        const grad = ctx.createRadialGradient(225, 375, 50, 225, 375, 400);
+        grad.addColorStop(0, '#1a1d36');
+        grad.addColorStop(1, '#050508');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else if (bg === 'grid') {
+        ctx.fillStyle = '#0d0f18';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#1d2238';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 30) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += 30) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+      }
+    }
+
+    // --- VẼ HỆ THỐNG HẠT VỆT ĐUÔI ---
+    function drawParticles() {
+      particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    // Frame chính
+    function render() {
+      if (trailStyle.value === 'fade') {
+        ctx.fillStyle = 'rgba(10, 11, 16, 0.25)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        drawBackground();
+      }
+
+      drawParticles();
+      drawPlatforms();
+      drawBall();
+    }
+
+    function loop() {
+      if (isPlaying) {
+        updatePhysics();
+        render();
+        requestAnimationFrame(loop);
+      }
+    }
+
+    startBtn.onclick = () => {
+      isPlaying = true;
+      if (audioCtx) audioCtx.resume();
+      playAudio();
+      loop();
+    };
+
+    // --- QUAY VIDEO & XUẤT FILE ---
+    recordBtn.onclick = () => {
+      recordedChunks = [];
+      const canvasStream = canvas.captureStream(60);
+      let combinedStream = canvasStream;
+
+      if (audioCtx && audioBuffer) {
+        const audioStream = playAudio();
+        if (audioStream) {
+          combinedStream = new MediaStream([
+            ...canvasStream.getVideoTracks(),
+            ...audioStream.getAudioTracks()
+          ]);
+        }
+      }
+
+      mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+      mediaRecorder.onstop = exportVideo;
+
+      mediaRecorder.start();
+      isPlaying = true;
+      loop();
+
+      recordBtn.disabled = true;
+      stopBtn.disabled = false;
+    };
+
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
+    };
+
+    function exportVideo() {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'custom-music-ball.webm';
+      a.click();
+    }
+
+    // Vẽ sẵn 1 frame ban đầu
+    render();
+  </script>
+</body>
+  </html>
+
