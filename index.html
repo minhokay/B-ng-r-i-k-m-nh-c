@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>3D Spiral Music Visualizer - Fast Particle Trail</title>
+  <title>3D Spiral Music Visualizer - Full Edition</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -12,6 +12,7 @@
       overflow-x: hidden;
     }
 
+    /* THANH CÔNG CỤ TRÊN CÙNG */
     #toolbar {
       width: 100%; max-width: 1000px; background: #131520;
       padding: 12px 20px; border-bottom: 1px solid #232738;
@@ -41,6 +42,7 @@
     #downloadBtn:hover { transform: translateY(-1px); opacity: 0.9; }
     #downloadBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
+    /* MÀN HÌNH CANVAS 3D PHÍA DƯỚI */
     #canvas-container {
       width: 100%; max-width: 1000px; flex: 1; display: flex;
       justify-content: center; align-items: center; padding: 20px 0;
@@ -51,10 +53,12 @@
     }
   </style>
 
+  <!-- Import Three.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
+  <!-- THANH CÔNG CỤ -->
   <div id="toolbar">
     <div class="tool-group">
       <label>Nhạc (.mp3):</label>
@@ -83,11 +87,13 @@
     <button id="downloadBtn" disabled>💥 Tải Video</button>
   </div>
 
+  <!-- CANVAS 3D -->
   <div id="canvas-container">
     <canvas id="stage3d"></canvas>
   </div>
 
   <script>
+    // 1. KHỞI TẠO KHÔNG GIAN THREE.JS
     const canvas = document.getElementById('stage3d');
     const width = 800, height = 600;
     
@@ -98,17 +104,15 @@
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(document.getElementById('bgColor').value);
 
-    // Camera 3D
     const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
 
-    // Ánh sáng
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(5, 15, 10);
     scene.add(dirLight);
 
-    // Quả bóng 3D
+    // 2. TẠO BÓNG & HỆ THỐNG VỆT BỤI SAO (PARTICLE TRAIL)
     const ballGeo = new THREE.SphereGeometry(0.45, 32, 32);
     const ballMat = new THREE.MeshStandardMaterial({
       color: document.getElementById('ballColor').value,
@@ -119,14 +123,12 @@
     const ballMesh = new THREE.Mesh(ballGeo, ballMat);
     scene.add(ballMesh);
 
-    // HỆ THỐNG VỆT BỤI SAO (PARTICLE TRAIL)
     const trailLength = 50;
     const trailHistory = [];
     const trailGeo = new THREE.BufferGeometry();
     const trailPositions = new Float32Array(trailLength * 3);
     trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
 
-    // Tạo texture hạt mờ ảo
     const pCanvas = document.createElement('canvas');
     pCanvas.width = 32; pCanvas.height = 32;
     const pCtx = pCanvas.getContext('2d');
@@ -138,7 +140,7 @@
 
     const particleTexture = new THREE.CanvasTexture(pCanvas);
     const trailMat = new THREE.PointsMaterial({
-      size: 0.38,
+      size: 0.4,
       map: particleTexture,
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -152,7 +154,7 @@
 
     let trackPoints = [];
 
-    // Tạo đường đi xoắn ốc 3D tốc độ cao
+    // 3. SINH ĐƯỜNG XOẮN ỐC 3D TỰ ĐỘNG THEO MP3
     function generate3DSpiralTrack(audioBuffer) {
       scene.remove(trackGroup);
       trackGroup = new THREE.Group();
@@ -160,7 +162,7 @@
       trackPoints = [];
 
       const rawData = audioBuffer.getChannelData(0);
-      const samples = 180; // Tăng mật độ điểm cho đường trượt dài và mượt hơn
+      const samples = 180;
       const blockSize = Math.floor(rawData.length / samples);
 
       let radius = 4.0;
@@ -179,7 +181,7 @@
         let z = Math.sin(angle) * radius;
 
         if (volume > 0.05) {
-          // Phím gõ
+          // Đoạn sôi động -> Phím gõ
           const padGeo = new THREE.BoxGeometry(1.2, 0.16, 0.6);
           const padMat = new THREE.MeshStandardMaterial({
             color: document.getElementById('padColor').value,
@@ -195,7 +197,7 @@
           currentY -= 0.85;
           angle += 0.4;
         } else {
-          // Đường trượt êm
+          // Đoạn trầm -> Đường trượt êm (Rail)
           const railGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.8, 16);
           const railMat = new THREE.MeshStandardMaterial({
             color: document.getElementById('trailColor').value,
@@ -215,6 +217,7 @@
       }
     }
 
+    // 4. LẮP FILE ÂM THANH
     let audioCtx, audioBuffer;
     document.getElementById('audioInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -228,13 +231,14 @@
       startAnimation();
     });
 
+    // Tùy chỉnh màu sắc live
     document.getElementById('bgColor').addEventListener('input', (e) => scene.background.set(e.target.value));
     document.getElementById('ballColor').addEventListener('input', (e) => {
       ballMat.color.set(e.target.value);
       ballMat.emissive.set(e.target.value);
     });
 
-    // VÒNG LẶP CHUYỂN ĐỘNG TỐC ĐỘ CAO & CẬP NHẬT PARTICLE TRAIL
+    // 5. VÒNG LẶP CHUYỂN ĐỘNG & CAMERA CINEMATIC
     let animIndex = 0;
     let isAnimating = false;
 
@@ -270,7 +274,7 @@
 
         ballMesh.position.set(x, baseY + 0.45 + bounceHeight, z);
 
-        // Cập nhật vị trí vệt hạt bụi sao phía sau bóng
+        // Cập nhật vị trí hạt vệt bụi sao
         trailHistory.unshift(ballMesh.position.clone());
         if (trailHistory.length > trailLength) trailHistory.pop();
 
@@ -284,7 +288,7 @@
         }
         trailGeo.attributes.position.needsUpdate = true;
 
-        // Camera xoay động theo góc lốc xoáy
+        // Camera xoay lốc xoáy
         let camAngle = THREE.MathUtils.lerp(p1.angle, p2.angle, progress) - 0.55;
         let camRadius = 9.0;
         
@@ -305,14 +309,14 @@
         }
       }
 
-      animIndex += 0.055; // Tăng tốc độ chuyển động mượt và nhanh hơn
+      animIndex += 0.055;
       if (animIndex >= trackPoints.length - 1) animIndex = 0;
 
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     }
 
-    // Tải Video 1-Click
+    // 6. XUẤT VIDEO 1-CLICK
     document.getElementById('downloadBtn').onclick = () => {
       const downloadBtn = document.getElementById('downloadBtn');
       downloadBtn.innerText = "⏳ Đang Tải...";
@@ -328,7 +332,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = '3d-fast-spiral-trail.webm';
+        a.download = '3d-music-visualizer.webm';
         a.click();
 
         downloadBtn.innerText = "💥 Tải Video";
@@ -341,3 +345,4 @@
   </script>
 </body>
 </html>
+
