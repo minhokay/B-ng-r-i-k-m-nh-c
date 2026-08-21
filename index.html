@@ -2,347 +2,329 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>3D Spiral Music Visualizer - Full Edition</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Helix Music Visualizer</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #090a10; color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex; flex-direction: column; align-items: center; min-height: 100vh;
-      overflow-x: hidden;
-    }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #050508; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
-    /* THANH CÔNG CỤ TRÊN CÙNG */
-    #toolbar {
-      width: 100%; max-width: 1000px; background: #131520;
-      padding: 12px 20px; border-bottom: 1px solid #232738;
-      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-      gap: 15px; position: sticky; top: 0; z-index: 100;
+    /* MÀN HÌNH 1: START SCREEN */
+    #start-screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at center, #1a1a2e 0%, #050508 100%);
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      z-index: 100; transition: opacity 0.8s ease;
     }
+    .card {
+      background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1); padding: 40px; border-radius: 20px;
+      text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); max-width: 400px; width: 90%;
+    }
+    h1 { color: #fff; font-size: 24px; margin-bottom: 20px; letter-spacing: 1px; }
+    .file-input-wrapper { margin-bottom: 25px; position: relative; }
+    input[type="file"] { display: none; }
+    .file-btn {
+      background: linear-gradient(45deg, #00f2fe, #4facfe); color: #fff;
+      padding: 12px 24px; border-radius: 30px; cursor: pointer; font-weight: bold;
+      display: inline-block; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .file-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4); }
+    #file-name { color: #aaa; font-size: 13px; margin-top: 10px; word-break: break-all; min-height: 18px; }
+    
+    #play-btn {
+      background: linear-gradient(45deg, #ff0844, #ffb199); color: #fff; border: none;
+      padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold;
+      cursor: pointer; opacity: 0.5; pointer-events: none; transition: all 0.3s ease;
+    }
+    #play-btn.active { opacity: 1; pointer-events: auto; box-shadow: 0 0 20px rgba(255, 8, 68, 0.6); }
+    #play-btn.active:hover { transform: scale(1.05); }
 
-    .tool-group { display: flex; align-items: center; gap: 10px; }
-    label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
-    input[type="file"] { font-size: 12px; color: #ccc; }
-
-    .color-pickers { display: flex; gap: 8px; align-items: center; }
-    .color-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    input[type="color"] {
-      -webkit-appearance: none; border: none; width: 28px; height: 28px;
-      border-radius: 50%; cursor: pointer; background: none;
-    }
-    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-    input[type="color"]::-webkit-color-swatch { border: 1px solid #444; border-radius: 50%; }
-
-    #downloadBtn {
-      background: linear-gradient(135deg, #7000ff, #00f0ff); color: #fff;
-      border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold;
-      font-size: 13px; cursor: pointer; transition: transform 0.2s, opacity 0.2s;
-      box-shadow: 0 4px 15px rgba(112, 0, 255, 0.4);
-    }
-    #downloadBtn:hover { transform: translateY(-1px); opacity: 0.9; }
-    #downloadBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
-    /* MÀN HÌNH CANVAS 3D PHÍA DƯỚI */
-    #canvas-container {
-      width: 100%; max-width: 1000px; flex: 1; display: flex;
-      justify-content: center; align-items: center; padding: 20px 0;
-    }
-    canvas {
-      border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-      outline: none; max-width: 100%; height: auto;
-    }
+    /* MÀN HÌNH 2: 3D STAGE */
+    #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+    #loading-msg { color: #4facfe; font-size: 14px; margin-top: 15px; display: none; }
   </style>
-
-  <!-- Import Three.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-  <!-- THANH CÔNG CỤ -->
-  <div id="toolbar">
-    <div class="tool-group">
-      <label>Nhạc (.mp3):</label>
-      <input type="file" id="audioInput" accept="audio/*">
+  <!-- UI MÀN HÌNH 1 -->
+  <div id="start-screen">
+    <div class="card">
+      <h1>3D HELIX VISUALIZER</h1>
+      <div class="file-input-wrapper">
+        <label for="audio-file" class="file-btn">CHỌN FILE MP3</label>
+        <input type="file" id="audio-file" accept="audio/*">
+        <div id="file-name">Chưa chọn file nào</div>
+      </div>
+      <button id="play-btn">PLAY</button>
+      <div id="loading-msg">Đang phân tích giai điệu...</div>
     </div>
-
-    <div class="color-pickers">
-      <div class="color-item">
-        <label>Nền</label>
-        <input type="color" id="bgColor" value="#05050d">
-      </div>
-      <div class="color-item">
-        <label>Bóng</label>
-        <input type="color" id="ballColor" value="#00f0ff">
-      </div>
-      <div class="color-item">
-        <label>Vệt Đuôi</label>
-        <input type="color" id="trailColor" value="#7000ff">
-      </div>
-      <div class="color-item">
-        <label>Phím Gõ</label>
-        <input type="color" id="padColor" value="#ff0055">
-      </div>
-    </div>
-
-    <button id="downloadBtn" disabled>💥 Tải Video</button>
   </div>
 
-  <!-- CANVAS 3D -->
-  <div id="canvas-container">
-    <canvas id="stage3d"></canvas>
-  </div>
+  <!-- CONTAINER 3D -->
+  <div id="canvas-container"></div>
 
-  <script>
-    // 1. KHỞI TẠO KHÔNG GIAN THREE.JS
-    const canvas = document.getElementById('stage3d');
-    const width = 800, height = 600;
+<script>
+  // --- BIẾN TOÀN CỤC ---
+  let scene, camera, renderer, audioCtx, audioBuffer, audioSource;
+  let trackGroup, ball, spotLight, ballLight;
+  let notesData = [];
+  let isPlaying = false;
+  let startTime = 0;
+
+  // Cấu hình đường Helix Spiral
+  const HELIX_RADIUS = 6;
+  const HELIX_PITCH = 1.2; // Độ dốc xuống theo trục Y
+  const HELIX_SPEED = 0.8; // Tốc độ xoay góc
+
+  const fileInput = document.getElementById('audio-file');
+  const fileNameDisplay = document.getElementById('file-name');
+  const playBtn = document.getElementById('play-btn');
+  const startScreen = document.getElementById('start-screen');
+  const loadingMsg = document.getElementById('loading-msg');
+
+  // --- 1. KHỞI TẠO SCENE 3D ---
+  function init3D() {
+    const container = document.getElementById('canvas-container');
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050508, 0.03);
+
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-    renderer.setSize(width, height);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(document.getElementById('bgColor').value);
-
-    const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    // Ánh sáng môi trường tối
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(5, 15, 10);
-    scene.add(dirLight);
 
-    // 2. TẠO BÓNG & HỆ THỐNG VỆT BỤI SAO (PARTICLE TRAIL)
-    const ballGeo = new THREE.SphereGeometry(0.45, 32, 32);
-    const ballMat = new THREE.MeshStandardMaterial({
-      color: document.getElementById('ballColor').value,
-      emissive: document.getElementById('ballColor').value,
-      emissiveIntensity: 0.7,
-      roughness: 0.1
+    // Nguồn sáng động chiếu từ bóng xuống (Spotlight & PointLight)
+    spotLight = new THREE.SpotLight(0xffffff, 3, 20, Math.PI / 4, 0.5, 1);
+    spotLight.castShadow = true;
+    scene.add(spotLight);
+
+    ballLight = new THREE.PointLight(0x00f2fe, 2, 10);
+    scene.add(ballLight);
+
+    // Quả bóng đa sắc lấp lánh (Icosahedron / Marble)
+    const ballGeo = new THREE.IcosahedronGeometry(0.5, 3);
+    const ballMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      emissive: 0x224488,
+      roughness: 0.1,
+      metalness: 0.1,
+      transmission: 0.6,
+      ior: 1.5,
+      clearcoat: 1.0
     });
-    const ballMesh = new THREE.Mesh(ballGeo, ballMat);
-    scene.add(ballMesh);
+    ball = new THREE.Mesh(ballGeo, ballMat);
+    ball.castShadow = true;
+    scene.add(ball);
 
-    const trailLength = 50;
-    const trailHistory = [];
-    const trailGeo = new THREE.BufferGeometry();
-    const trailPositions = new Float32Array(trailLength * 3);
-    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-
-    const pCanvas = document.createElement('canvas');
-    pCanvas.width = 32; pCanvas.height = 32;
-    const pCtx = pCanvas.getContext('2d');
-    const grad = pCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    grad.addColorStop(0, 'rgba(255,255,255,1)');
-    grad.addColorStop(0.4, 'rgba(0,240,255,0.7)');
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
-    pCtx.fillStyle = grad; pCtx.fillRect(0, 0, 32, 32);
-
-    const particleTexture = new THREE.CanvasTexture(pCanvas);
-    const trailMat = new THREE.PointsMaterial({
-      size: 0.4,
-      map: particleTexture,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    const particleTrail = new THREE.Points(trailGeo, trailMat);
-    scene.add(particleTrail);
-
-    let trackGroup = new THREE.Group();
+    trackGroup = new THREE.Group();
     scene.add(trackGroup);
 
-    let trackPoints = [];
+    window.addEventListener('resize', onWindowResize);
+  }
 
-    // 3. SINH ĐƯỜNG XOẮN ỐC 3D TỰ ĐỘNG THEO MP3
-    function generate3DSpiralTrack(audioBuffer) {
-      scene.remove(trackGroup);
-      trackGroup = new THREE.Group();
-      scene.add(trackGroup);
-      trackPoints = [];
+  // --- 2. XỬ LÝ ÂM THANH & PHÂN TÍCH NỐT ---
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-      const rawData = audioBuffer.getChannelData(0);
-      const samples = 180;
-      const blockSize = Math.floor(rawData.length / samples);
+    fileNameDisplay.innerText = file.name;
+    loadingMsg.style.display = 'block';
+    playBtn.classList.remove('active');
 
-      let radius = 4.0;
-      let angle = 0;
-      let currentY = 0;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-      for (let i = 0; i < samples; i++) {
-        let sum = 0;
-        let blockStart = blockSize * i;
-        for (let j = 0; j < blockSize; j += 120) {
-          sum += Math.abs(rawData[blockStart + j]);
+    const arrayBuffer = await file.arrayBuffer();
+    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+    // Phân tích dữ liệu âm thanh tìm Peak / Pitch
+    analyzeAudio(audioBuffer);
+
+    loadingMsg.style.display = 'none';
+    playBtn.classList.add('active');
+  });
+
+  function analyzeAudio(buffer) {
+    const data = buffer.getChannelData(0);
+    const sampleRate = buffer.sampleRate;
+    const chunkSize = Math.floor(sampleRate * 0.08); // Phân tích mỗi 80ms
+    notesData = [];
+
+    let threshold = 0.15; // Ngưỡng âm lượng để lọc khoảng lặng
+    let lastNoteTime = -1;
+
+    for (let i = 0; i < data.length; i += chunkSize) {
+      let sum = 0;
+      for (let j = 0; j < chunkSize && (i + j) < data.length; j++) {
+        sum += data[i + j] * data[i + j];
+      }
+      let rms = Math.sqrt(sum / chunkSize);
+      let time = i / sampleRate;
+
+      // Xử lý Khoảng Lặng (Silence Detection)
+      if (rms > threshold) {
+        let isHold = false;
+        // Nếu nốt trước đó quá gần, gom lại thành thanh trượt (Hold/Slide)
+        if (notesData.length > 0 && (time - lastNoteTime) < 0.12) {
+          isHold = true;
         }
-        let volume = sum / (blockSize / 120);
 
-        let x = Math.cos(angle) * radius;
-        let z = Math.sin(angle) * radius;
-
-        if (volume > 0.05) {
-          // Đoạn sôi động -> Phím gõ
-          const padGeo = new THREE.BoxGeometry(1.2, 0.16, 0.6);
-          const padMat = new THREE.MeshStandardMaterial({
-            color: document.getElementById('padColor').value,
-            emissive: document.getElementById('padColor').value,
-            emissiveIntensity: 0.5
-          });
-          const pad = new THREE.Mesh(padGeo, padMat);
-          pad.position.set(x, currentY, z);
-          pad.rotation.y = -angle;
-          trackGroup.add(pad);
-
-          trackPoints.push({ x, y: currentY, z, angle, type: 'note', mesh: pad });
-          currentY -= 0.85;
-          angle += 0.4;
-        } else {
-          // Đoạn trầm -> Đường trượt êm (Rail)
-          const railGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.8, 16);
-          const railMat = new THREE.MeshStandardMaterial({
-            color: document.getElementById('trailColor').value,
-            emissive: document.getElementById('trailColor').value,
-            emissiveIntensity: 0.7
-          });
-          const rail = new THREE.Mesh(railGeo, railMat);
-          rail.position.set(x, currentY - 0.4, z);
-          rail.rotation.x = Math.PI / 2;
-          rail.rotation.z = angle;
-          trackGroup.add(rail);
-
-          trackPoints.push({ x, y: currentY, z, angle, type: 'rail', mesh: rail });
-          currentY -= 1.3;
-          angle += 0.55;
-        }
+        notesData.push({
+          time: time,
+          energy: rms,
+          type: isHold ? 'hold' : 'tap'
+        });
+        lastNoteTime = time;
       }
     }
+    
+    // Dựng bản đồ 3D Helix từ nốt nhạc đã phân tích
+    build3DHelixTrack();
+  }
 
-    // 4. LẮP FILE ÂM THANH
-    let audioCtx, audioBuffer;
-    document.getElementById('audioInput').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const arrayBuffer = await file.arrayBuffer();
-      audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-      
-      generate3DSpiralTrack(audioBuffer);
-      document.getElementById('downloadBtn').disabled = false;
-      startAnimation();
-    });
-
-    // Tùy chỉnh màu sắc live
-    document.getElementById('bgColor').addEventListener('input', (e) => scene.background.set(e.target.value));
-    document.getElementById('ballColor').addEventListener('input', (e) => {
-      ballMat.color.set(e.target.value);
-      ballMat.emissive.set(e.target.value);
-    });
-
-    // 5. VÒNG LẶP CHUYỂN ĐỘNG & CAMERA CINEMATIC
-    let animIndex = 0;
-    let isAnimating = false;
-
-    function startAnimation() {
-      animIndex = 0;
-      trailHistory.length = 0;
-      isAnimating = true;
-      animate();
+  // --- 3. DỰNG ĐƯỜNG RUNNER HELIX 3D ---
+  function build3DHelixTrack() {
+    // Dọn dẹp track cũ
+    while(trackGroup.children.length > 0){ 
+      const obj = trackGroup.children[0];
+      trackGroup.remove(obj); 
     }
 
-    function animate() {
-      if (!isAnimating || trackPoints.length === 0) return;
+    const tileGeo = new THREE.BoxGeometry(1.6, 0.2, 0.8);
+    const tileMat = new THREE.MeshStandardMaterial({
+      color: 0xdddddd,
+      roughness: 0.2,
+      metalness: 0.5,
+      emissive: 0x000000
+    });
 
-      let currIdx = Math.floor(animIndex);
-      let nextIdx = (currIdx + 1) % trackPoints.length;
-      let progress = animIndex - currIdx;
+    const railMat = new THREE.MeshStandardMaterial({
+      color: 0x333344,
+      roughness: 0.5,
+      metalness: 0.8
+    });
 
-      let p1 = trackPoints[currIdx];
-      let p2 = trackPoints[nextIdx];
+    notesData.forEach((note, index) => {
+      const angle = note.time * HELIX_SPEED;
+      const x = Math.cos(angle) * HELIX_RADIUS;
+      const z = Math.sin(angle) * HELIX_RADIUS;
+      const y = -note.time * HELIX_PITCH;
 
-      if (p1 && p2) {
-        let x = THREE.MathUtils.lerp(p1.x, p2.x, progress);
-        let z = THREE.MathUtils.lerp(p1.z, p2.z, progress);
-        
-        let baseY = THREE.MathUtils.lerp(p1.y, p2.y, progress);
-        let bounceHeight = 0;
+      if (note.type === 'tap') {
+        // Phím gõ đơn (Tap Tile)
+        const tile = new THREE.Mesh(tileGeo, tileMat.clone());
+        tile.position.set(x, y, z);
+        tile.rotation.y = -angle + Math.PI / 2;
+        tile.receiveShadow = true;
+        tile.userData = { time: note.time, hit: false, type: 'tap' };
+        trackGroup.add(tile);
+      } else {
+        // Thanh trượt dài (Hold/Slide Rail)
+        const railGeo = new THREE.BoxGeometry(0.4, 0.1, 1.2);
+        const rail = new THREE.Mesh(railGeo, railMat);
+        rail.position.set(x, y, z);
+        rail.rotation.y = -angle + Math.PI / 2;
+        rail.userData = { time: note.time, hit: false, type: 'hold' };
+        trackGroup.add(rail);
+      }
+    });
+  }
 
-        if (p1.type === 'note') {
-          bounceHeight = Math.sin(progress * Math.PI) * 0.9;
-        } else {
-          bounceHeight = Math.sin(progress * Math.PI) * 0.12;
-        }
+  // --- 4. PLAY & ANIMATION LOOP ---
+  playBtn.addEventListener('click', () => {
+    if (!audioBuffer) return;
 
-        ballMesh.position.set(x, baseY + 0.45 + bounceHeight, z);
+    startScreen.style.opacity = '0';
+    setTimeout(() => startScreen.style.display = 'none', 800);
 
-        // Cập nhật vị trí hạt vệt bụi sao
-        trailHistory.unshift(ballMesh.position.clone());
-        if (trailHistory.length > trailLength) trailHistory.pop();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
 
-        const posArr = trailGeo.attributes.position.array;
-        for (let i = 0; i < trailLength; i++) {
-          if (trailHistory[i]) {
-            posArr[i * 3] = trailHistory[i].x;
-            posArr[i * 3 + 1] = trailHistory[i].y;
-            posArr[i * 3 + 2] = trailHistory[i].z;
+    audioSource = audioCtx.createBufferSource();
+    audioSource.buffer = audioBuffer;
+    audioSource.connect(audioCtx.destination);
+
+    startTime = audioCtx.currentTime;
+    audioSource.start(0);
+    isPlaying = true;
+
+    animate();
+  });
+
+  function animate() {
+    if (!isPlaying) return;
+    requestAnimationFrame(animate);
+
+    const currentTime = audioCtx.currentTime - startTime;
+
+    // Tọa độ hiện tại của bóng trên đường Helix
+    const currentAngle = currentTime * HELIX_SPEED;
+    const ballX = Math.cos(currentAngle) * HELIX_RADIUS;
+    const ballZ = Math.sin(currentAngle) * HELIX_RADIUS;
+    const baseY = -currentTime * HELIX_PITCH;
+
+    // Logic nảy Parabol (Tap) vs Lướt mượt (Hold)
+    let bounceY = 0;
+    const currentBeat = currentTime % 0.4; 
+    bounceY = Math.abs(Math.sin(currentBeat * Math.PI / 0.4)) * 0.6; // Độ nảy vừa phải
+
+    ball.position.set(ballX, baseY + 0.5 + bounceY, ballZ);
+    ball.rotation.x += 0.05;
+    ball.rotation.y += 0.05;
+
+    // Đèn đuổi theo bóng
+    spotLight.position.set(ballX * 1.2, ball.position.y + 4, ballZ * 1.2);
+    spotLight.target = ball;
+    ballLight.position.copy(ball.position);
+
+    // Camera Cinematic đuổi theo phía sau bóng, nhìn chìm xuống dưới
+    const camAngle = currentAngle - 0.6; 
+    const camX = Math.cos(camAngle) * (HELIX_RADIUS + 4);
+    const camZ = Math.sin(camAngle) * (HELIX_RADIUS + 4);
+    camera.position.set(camX, ball.position.y + 3, camZ);
+    camera.lookAt(ballX, ball.position.y - 1.5, ballZ);
+
+    // Logic Tương tác Va chạm (Hit Detection & Light Trigger)
+    trackGroup.children.forEach(child => {
+      if (child.userData && !child.userData.hit) {
+        if (Math.abs(child.userData.time - currentTime) < 0.1) {
+          child.userData.hit = true;
+          // Phát sáng bừng lên (Glow Pulse)
+          if (child.material.emissive) {
+            child.material.emissive.setHex(0x00f2fe);
+            child.material.emissiveIntensity = 2.0;
+            
+            // Giảm độ sáng dần dần
+            let fade = setInterval(() => {
+              child.material.emissiveIntensity -= 0.1;
+              if (child.material.emissiveIntensity <= 0) {
+                child.material.emissiveIntensity = 0;
+                clearInterval(fade);
+              }
+            }, 50);
           }
         }
-        trailGeo.attributes.position.needsUpdate = true;
-
-        // Camera xoay lốc xoáy
-        let camAngle = THREE.MathUtils.lerp(p1.angle, p2.angle, progress) - 0.55;
-        let camRadius = 9.0;
-        
-        let targetCamX = Math.cos(camAngle) * camRadius;
-        let targetCamZ = Math.sin(camAngle) * camRadius;
-        let targetCamY = ballMesh.position.y + 4.0;
-
-        camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetCamX, 0.1);
-        camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetCamY, 0.1);
-        camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCamZ, 0.1);
-
-        camera.lookAt(0, ballMesh.position.y - 2.0, 0);
-
-        if (p1.type === 'note' && p1.mesh && progress < 0.25) {
-          p1.mesh.material.emissiveIntensity = 1.4;
-        } else if (p1.mesh) {
-          p1.mesh.material.emissiveIntensity = 0.5;
-        }
       }
+    });
 
-      animIndex += 0.055;
-      if (animIndex >= trackPoints.length - 1) animIndex = 0;
+    renderer.render(scene, camera);
+  }
 
-      renderer.render(scene, camera);
-      requestAnimationFrame(animate);
-    }
+  function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
 
-    // 6. XUẤT VIDEO 1-CLICK
-    document.getElementById('downloadBtn').onclick = () => {
-      const downloadBtn = document.getElementById('downloadBtn');
-      downloadBtn.innerText = "⏳ Đang Tải...";
-      downloadBtn.disabled = true;
-
-      const stream = canvas.captureStream(60);
-      let recordedChunks = [];
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-
-      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = '3d-music-visualizer.webm';
-        a.click();
-
-        downloadBtn.innerText = "💥 Tải Video";
-        downloadBtn.disabled = false;
-      };
-
-      mediaRecorder.start();
-      setTimeout(() => mediaRecorder.stop(), 10000);
-    };
-  </script>
+  // Khởi chạy Scene ngay khi load trang
+  init3D();
+</script>
 </body>
 </html>
-
